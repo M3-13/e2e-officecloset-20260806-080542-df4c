@@ -16,4 +16,4 @@ def _cleanup_db():
 
 atexit.register(_cleanup_db)
 os.environ["DATABASE_PATH"] = _db_path
-os.environ["JWT_SECRET_KEY"] = "test-jwt-secret-key-at-least-32-characters-long"
+os.environ["JWT_SECRET_KEY"] = __import__("secrets").token_hex(32)
