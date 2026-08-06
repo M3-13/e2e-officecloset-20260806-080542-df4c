@@ -1,5 +1,6 @@
 import io
 import os
+from unittest import mock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -249,6 +250,31 @@ class TestCreateWardrobeItem:
                 files={"image": ("file.jpg", io.BytesIO(jpeg), "text/plain")},
             )
             assert response.status_code == 201
+
+    def test_create_item_strip_exif_failure_cleans_up(self, tmp_path):
+        os.environ["UPLOAD_DIR"] = str(tmp_path / "uploads")
+        upload_dir = os.environ["UPLOAD_DIR"]
+        os.makedirs(upload_dir, exist_ok=True)
+        app.dependency_overrides[get_current_user] = _override_get_current_user_1
+
+        with TestClient(app) as client:
+            jpeg = _make_jpeg_bytes()
+            with mock.patch("wardrobe.strip_exif", side_effect=RuntimeError("mock failure")):
+                response = client.post(
+                    "/api/wardrobe",
+                    data={"name": "Fail", "category": "Oberteil"},
+                    files={"image": ("fail.jpg", io.BytesIO(jpeg), "image/jpeg")},
+                )
+            assert response.status_code == 400
+            assert response.json()["detail"] == "Image processing failed"
+
+            remaining = os.listdir(upload_dir)
+            assert len(remaining) == 0
+
+            db = TestSessionLocal()
+            items = db.query(ClothingItem).all()
+            db.close()
+            assert len(items) == 0
 
 
 class TestGetWardrobeItem:

@@ -1,4 +1,3 @@
-import contextlib
 import os
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -38,8 +37,12 @@ async def create_wardrobe_item(
     upload_dir = os.environ.get("UPLOAD_DIR", "uploads")
     filename = save_image(image, upload_dir)
     filepath = os.path.join(upload_dir, filename)
-    with contextlib.suppress(Exception):
+    try:
         strip_exif(filepath)
+    except Exception:
+        if os.path.isfile(filepath):
+            os.remove(filepath)
+        raise HTTPException(status_code=400, detail="Image processing failed")
 
     item = ClothingItem(
         name=name,
