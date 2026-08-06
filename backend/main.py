@@ -43,11 +43,9 @@ async def unhandled(request: Request, exc: Exception) -> JSONResponse:
     return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
 
 
-app.mount(
-    "/api/uploads",
-    StaticFiles(directory=os.environ.get("UPLOAD_DIR", "uploads")),
-    name="uploads",
-)
+UPLOAD_DIR = os.environ.get("UPLOAD_DIR", "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+app.mount("/api/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 app.include_router(auth_router)
 app.include_router(wardrobe_router)
