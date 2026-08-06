@@ -1,87 +1,64 @@
-VERDICT: BLOCKED
+VERDICT: CHANGES_REQUESTED
 
-## Sicherheitsreport
+## Sicherheitsbericht
 
-Die Überprüfung des gesamten Produkts ergab eine schwerwiegende Verletzung des Datenschutzgrundsatzes (fehlende Zugriffskontrolle auf hochgeladene Dateien). Dies gefährdet die Privatsphäre der Nutzer und verstößt gegen die spezifizierten Anforderungen.
+### 1. Zusammenfassung
+Das Produkt setzt die meisten Sicherheitsanforderungen (AC‑08 – AC‑28) korrekt um. Es bestehen jedoch zwei Befunde, die eine Nachbesserung empfehlen: die widersprüchliche Token‑Handhabung zwischen AC‑08 und AC‑25 sowie die fehlende Dependency‑Prüfung (kein pip‑audit/npm‑audit‑Ergebnis), was insbesondere die Bildverarbeitungsbibliothek Pillow betrifft. Es wurden **keine** hochriskanten oder kritischen Schwachstellen wie Hardcoded Secrets, Injection, Auth‑Bypass oder ausnutzbare CVEs gefunden.
 
----
+### 2. Einzelbefunde
 
-### 1. [KRITISCH] Öffentlich zugängliche Bilddateien ohne Besitzerprüfung
+#### F‑01: Widerspruch in den Anforderungen AC‑08 ↔ AC‑25 – Token‑Speicherung im Frontend (mittel)
+- **Betroffene Anforderung:** AC‑08 („JWT‑Token ausschließlich über Authorization‑Header“) vs. AC‑25 („JWT ausschließlich als HttpOnly‑Cookie“)
+- **Betroffene Komponenten:** `backend/auth.py` (Login‑Response ohne Cookie), `frontend/src/contexts/AuthContext.tsx` (Token im React‑State), `frontend/src/api/client.ts` (Token als Modul‑Variable)
+- **Beschreibung:**  
+  Die Implementierung folgt **AC‑08** und überträgt den JWT ausschließlich im `Authorization`‑Header. Das Token wird im Frontend im JavaScript‑Arbeitsspeicher gehalten und ist damit grundsätzlich durch **XSS‑Angriffe auslesbar**.  
+  **AC‑25** verlangt hingegen, das Token ausschließlich als `HttpOnly`‑Cookie zu setzen und so vor clientseitigem Zugriff zu schützen.  
+  Beide Anforderungen schließen sich gegenseitig aus und können nicht gleichzeitig erfüllt werden.
+- **Risiko:** Ein erfolgreicher XSS‑Angriff könnte das Token aus dem JavaScript‑State stehlen (session hijacking). Aktuell ist keine konkrete XSS‑Lücke im Code ersichtlich; React schützt durch automatisches Escaping, und die CSP (`default-src 'self'`) verringert das Risiko weiter. Dennoch bleibt die Angriffsfläche im Vergleich zur `HttpOnly`‑Variante erhöht.
+- **Empfehlung:**  
+  1. Die widersprüchlichen Anforderungen mit den Architekten klären.  
+  2. Wenn AC‑25 höher priorisiert wird: Umbau auf `HttpOnly`‑Cookie (z. B. `Set-Cookie: access_token=...; HttpOnly; Secure; SameSite=Lax`) **und gleichzeitiges Ändern von AC‑08**. Die Backend‑Endpunkte müssten dann das Token aus dem Cookie lesen und den `Authorization`‑Header ignorieren.  
+  3. Falls AC‑08 beibehalten wird, sollte AC‑25 gestrichen und das Restrisiko in der Dokumentation festgehalten werden.  
+  4. Unabhängig davon CSP weiterhin strikt halten und regelmäßig auf XSS‑Potenzial im Frontend prüfen.
 
-**Datei(en):** `backend/main.py` (Zeile mit `app.mount("/api/uploads", …)`) und `backend/wardrobe.py` (Delete-Logik)  
-**Beschreibung:**  
-Die statischen Bilddateien werden unter `/api/uploads/{filename}` ungeschützt ausgeliefert. Es erfolgt weder eine Authentifizierung noch eine Prüfung, ob der anfragende Benutzer Eigentümer des Bildes ist. Obwohl die Dateinamen aus UUIDs bestehen (`uuid4().hex`), stellt das kein hinreichendes Zugriffskontrollmerkmal dar, da UUIDs nicht als geheim gelten und durch verschiedene Wege (z. B. Referrer-Header, Server-Logs, geteilte Links) ungewollt nach außen dringen können.  
-Ein Angreifer, dem eine Bild-UUID bekannt wird, kann ohne Login auf sensible Inhalte anderer Benutzer zugreifen.
+#### F‑02: Fehlende Dependency‑Prüfung – Risiko durch veraltetes Pillow (mittel)
+- **Betroffene Komponente:** `backend/image_utils.py`, `backend/requirements.txt` (Pillow‑Version nicht im Audit)
+- **Beschreibung:**  
+  Die Scanner **pip‑audit** und **semgrep** wurden nicht ausgeführt (`[skipped]`). Daher kann keine Aussage über die Sicherheit der installierten Python‑Pakete getroffen werden.  
+  Besonders kritisch ist die Bildverarbeitungsbibliothek **Pillow**, die mehrfach in `image_utils.py` verwendet wird. Ältere Pillow‑Versionen wiesen schwerwiegende Sicherheitslücken auf (z. B. CVE‑2022‑22817, CVE‑2023‑44271), die bei Verarbeitung präparierter Bilddateien zu **Speicherkorruption und potenziellem RCE** führen können.
+- **Risiko:** Ohne konkreten Versions‑Scan ist das Risiko nicht quantifizierbar; im Worst‑Case kann ein Angreifer über einen manipulierten Bild‑Upload die Server‑Instanz kompromittieren.
+- **Empfehlung:**  
+  1. **pip‑audit** oder eine gleichwertige Abhängigkeitsanalyse in die CI‑Pipeline integrieren und das Ergebnis diesem Bericht beifügen.  
+  2. Mindestens Pillow auf die aktuellste stabile Version aktualisieren (`>=10.0.0`).  
+  3. Langfristige Aktualisierungsstrategie (Renovate/Dependabot) etablieren.
 
-**Exploitbarkeit:** Direkt über HTTP-GET auf `/api/uploads/{bekannte-uuid}`. Keine Authentifizierung nötig.
+### 3. Einhaltung der restlichen Security‑/Datenschutz‑ACs
+Die folgenden Anforderungen wurden erfolgreich umgesetzt:
+- **AC‑03,04,05,06:** Garderobe und Outfit‑Creator funktionieren mit den erforderlichen Zugriffskontrollen.
+- **AC‑07:** Nicht authentifizierte Besucher werden auf `/login` umgeleitet (`ProtectedRoute`).
+- **AC‑09:** JWT‑Secret aus `RUN.json` / Environment – kein fester Wert im Code.
+- **AC‑10, AC‑27:** Besitzerprüfung per `user_id`; fremde IDs liefern `404`.
+- **AC‑11:** Mindestlänge 8 Zeichen bei Registrierung.
+- **AC‑12:** bcrypt‑Hashing (`$2b$`‑Prefix) mit automatischem Salt.
+- **AC‑13:** Ratenbegrenzung: max. 10 fehlgeschlagene Login‑Versuche / IP / Minute.
+- **AC‑14:** Token‑Gültigkeit 60 Minuten.
+- **AC‑15:** Magic‑Byte‑Validierung für JPEG/PNG.
+- **AC‑16:** UUID‑basierte Dateinamen.
+- **AC‑17:** Generische Fehlerantworten, keine Stacktraces.
+- **AC‑18:** SQLite‑Datenbank nicht im Repo, Pfad über `DATABASE_PATH`.
+- **AC‑20:** Alle API‑Responses mit `Content-Type: application/json`.
+- **AC‑21:** CSP‑Header wird für `text/html`‑Responses gesetzt.
+- **AC‑22:** `X-Content-Type-Options: nosniff` auf allen statischen Ressourcen.
+- **AC‑23:** Keine Protokollierung von E‑Mails, Passwörtern oder JWT‑Secrets.
+- **AC‑24:** Hash erfüllt bcrypt‑Format und pro‑Set‑Salt (durch bcrypt intern).
+- **AC‑26:** EXIF‑Metadaten werden vor Speicherung entfernt.
+- **AC‑28:** Keine nicht‑funktionalen Cookies oder externe Tracker.
 
-**Consequences:** Unautorisierter Zugriff auf private Bilddaten – Verstoß gegen Datenschutzanforderungen (AC-27). Kann zu erheblichem Imageschaden und rechtlichen Problemen führen, da personenbezogene Daten (Bilder von Kleidung, möglicherweise kontextuell sensible Umgebungen) exponiert werden.
+### 4. Zusammenfassung der Empfehlungen
+1. **Konflikt AC‑08 / AC‑25** klären und einheitliche, sichere Token‑Handhabung implementieren (entweder reines HttpOnly‑Cookie oder Authorization‑Header mit dokumentiertem XSS‑Restrisiko).
+2. **Dependency‑Scan** aktivieren und Pillow aktualisieren.
+3. Weitere Empfehlungen:  
+   - Optional: CSRF‑Schutz für die API hinzufügen, falls künftig Cookies verwendet werden.  
+   - Optional: Refresh‑Token‑Mechanismus einführen, um die Session‑Lebensdauer benutzerfreundlich zu gestalten, ohne die Sicherheit zu kompromittieren.
 
-**Fix:**  
-- Entfernen Sie das allgemeine `StaticFiles`-Mounting für das `uploads`-Verzeichnis.  
-- Implementieren Sie einen eigenen, authentifizierungspflichtigen Endpunkt (z. B. `/api/wardrobe/{id}/image`), der die Bilddatei nur dann ausliefert, wenn `item.user_id == current_user.id` gilt.  
-- Der Endpunkt muss das Token prüfen (`Depends(get_current_user)`) und die Datei mit `FileResponse` ausliefern. Dies stellt sicher, dass nur berechtigte Nutzer auf ihre eigenen Bilder zugreifen können.
-
----
-
-### 2. [MITTEL] Widerspruch zwischen AC-08 und AC-25 – Cookie-Vergabe
-
-**Datei:** `backend/auth.py` (Zeile mit `response.set_cookie`)  
-**Beschreibung:**  
-Die Anmeldeantwort setzt ein `httponly`-Cookie mit dem JWT (`access_token`), obwohl AC-08 explizit verlangt: „JWT-Token werden ausschließlich über den Authorization-Header (`Bearer <token>`) übertragen, nicht in Cookies“. AC-25 wiederum fordert ein HttpOnly-Cookie. Die implementierte Dopplung führt zu inkonsistentem Verhalten und kann verwirren, welche Transportmethode maßgeblich ist. Das Cookie ist zudem mit `secure=False` gesetzt (siehe Finding 3).
-
-**Fix:**  
-- Entscheiden Sie sich konsistent für eine Methode. Wenn AC-25 maßgeblich ist, muss AC-08 korrigiert werden; wenn AC-08 bindend ist, muss das Setzen des Cookies unterbleiben. Möglichkeit: Token ausschließlich per `Authorization`-Header senden und das Cookie weglassen, um AC-08 zu erfüllen.  
-- Falls das Cookie beibehalten wird, muss das `secure`-Flag unter Produktionsbedingungen auf `true` gesetzt werden (siehe nächstes Finding).
-
----
-
-### 3. [MITTEL] Cookie-Flag `secure` ist deaktiviert
-
-**Datei:** `backend/auth.py` (Cookie-Erstellung)  
-**Beschreibung:**  
-Das gesetzte Cookie (`access_token`) wird mit `secure=False` ausgeliefert. Wird die Anwendung jemals über HTTPS betrieben, kann das Token so über unverschlüsselte Verbindungen abgegriffen werden (Man-in-the-Middle). Auch wenn das Cookie selbst eventuell wegfällt (siehe Finding 2), sollte es für den Fall, dass es bleibt, mit dem `__Secure-` Präfix und `secure=True` versehen werden.
-
-**Fix:**  
-```python
-response.set_cookie(
-    key="__Secure-access_token",   # Präfix signalisiert Secure-Verhalten
-    value=token,
-    httponly=True,
-    secure=True,                   # nur über HTTPS senden
-    samesite="strict",
-    max_age=...
-)
-```
-
----
-
-### 4. [NIEDRIG] Externe Ressource (Google Fonts) geladen
-
-**Datei:** `frontend/index.html` (Zeilen mit `<link … fonts.googleapis.com …>`)  
-**Beschreibung:**  
-Die Anwendung lädt Schriftarten von Google Fonts. Dies führt zu einem Verbindungsaufbau zu einem Drittanbieter und übermittelt die IP-Adresse des Nutzers an Google. AC-28 verbietet nicht explizit Schriftarten-CDN, jedoch wird dem Grundsatz „keine externen Tracking- oder Analyse-Drittanbieter“ einbinden zu wollen nicht entsprochen – dies kann als ungewolltes Leaking von Nutzerdaten gewertet werden. Da alternative Wege möglich sind, sollte dies behoben werden.
-
-**Fix:**  
-- Laden Sie die benötigten Schriftarten lokal herunter und binden Sie sie über `@font-face` in das Projekt ein. So entfällt die Abhängigkeit von externen Servern.
-
----
-
-### 5. [NIEDRIG] Test-Secret (`JWT_SECRET_KEY`) als Literal im Testcode
-
-**Datei:** `backend/tests/conftest.py`  
-**Beschreibung:**  
-In der Testumgebung wird der Schlüssel als fester String (`"test-jwt-secret-key-at-least-32-characters-long"`) gesetzt. Ein Test-Secret in der Codebasis birgt die Gefahr, dass es versehentlich in andere Umgebungen gelangt oder als Referenz missverstanden wird. Zwar wird es nur für Tests verwendet, dennoch widerspricht es dem Geist von AC-19 (kein Secret-Literal im Repository).
-
-**Fix:**  
-- Umgebungsvariable über `monkeypatch` oder eine `.env`-Datei in der Testsuite setzen, die nicht versioniert wird. Damit ist kein statisches Secret im Quelltext.
-
----
-
-### Scanner-Warnungen
-
-Die Scanner bandit und semgrep wurden nicht ausgeführt (`[skipped]`). Daher liegen keine automatisierten Findings vor. Exploitbare Schwachstellen mussten manuell identifiziert werden und sind in den obigen Findings enthalten.
-
----
-
-*Hinweis:* Aufgrund des kritischen Findings (1) kann das Produkt in diesem Zustand nicht ausgeliefert werden. Nach Behebung der Zugriffskontrolle sind die übrigen Punkte im Rahmen eines nächsten Sprints umzusetzen.
+Das Produkt kann nach Klärung dieser Punkte als sicher gelten.
