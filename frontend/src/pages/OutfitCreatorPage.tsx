@@ -6,11 +6,13 @@ import type { ClothingItemResponse } from '../api/client';
 type CategoryKey = string;
 
 const CATEGORY_LABELS: Record<string, string> = {
-  top: 'Oberteile',
-  bottom: 'Unterteile',
-  shoes: 'Schuhe',
-  accessory: 'Accessoires',
+  oberteil: 'Oberteile',
+  hose: 'Unterteile',
+  schuhe: 'Schuhe',
+  accessoire: 'Accessoires',
 };
+
+const CATEGORY_ORDER = ['oberteil', 'hose', 'schuhe', 'accessoire'];
 
 function groupByCategory(items: ClothingItemResponse[]): Map<CategoryKey, ClothingItemResponse[]> {
   const map = new Map<CategoryKey, ClothingItemResponse[]>();
@@ -465,8 +467,7 @@ export default function OutfitCreatorPage() {
   const grouped = useMemo(() => groupByCategory(wardrobe), [wardrobe]);
 
   const orderedCategories = useMemo(() => {
-    const order = ['top', 'bottom', 'shoes', 'accessory'];
-    return order.filter((k) => grouped.has(k));
+    return CATEGORY_ORDER.filter((k) => grouped.has(k));
   }, [grouped]);
 
   const selectedItems = useMemo(
@@ -487,10 +488,10 @@ export default function OutfitCreatorPage() {
   };
 
   const hasTop = selectedItems.some(
-    (item) => item.category.toLowerCase() === 'top',
+    (item) => item.category.toLowerCase() === 'oberteil',
   );
   const hasBottom = selectedItems.some(
-    (item) => item.category.toLowerCase() === 'bottom',
+    (item) => item.category.toLowerCase() === 'hose',
   );
   const canSave = outfitName.trim().length > 0 && hasTop && hasBottom && !saving;
 

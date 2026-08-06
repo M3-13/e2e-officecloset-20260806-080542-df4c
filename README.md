@@ -11,22 +11,59 @@ Ein eleganter Web-basierter Kleiderschrank-Manager, bei dem Benutzer sich regist
 
 ## Setup
 
+### Backend
+
 ```bash
 cd backend
 py -m pip install -r requirements.txt
 ```
 
-## How to run (dev)
+### Frontend
 
 ```bash
-cd backend
+cd frontend
+npm ci
+```
+
+## How to run (dev)
+
+### 1. Configure environment
+
+Copy `.env.example` and adjust values, or export them in your shell:
+
+```bash
+# Backend (from backend/)
 set DATABASE_PATH=wardrobe.db
 set JWT_SECRET_KEY=your-secret-key-at-least-32-chars
 set UPLOAD_DIR=uploads
+```
+
+### 2. Start the backend
+
+```bash
+cd backend
 py -m uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
 Der Server startet auf `http://localhost:8000`.
+
+### 3. Start the frontend (dev server with proxy)
+
+```bash
+cd frontend
+npm run dev
+```
+
+Das Frontend läuft auf `http://localhost:5173` und leitet `/api`-Anfragen an den Backend-Server weiter.
+
+### Production build
+
+```bash
+cd frontend
+npm run build
+```
+
+Das gebaute Frontend liegt in `frontend/dist/`.
 
 ## How to run tests
 
@@ -87,11 +124,14 @@ Hochgeladene Bilder sind unter `/api/uploads/<filename>` verfügbar.
 - Kleidungsstück-Verwaltung mit Bild-Upload, Kategorisierung und EXIF-Stripping
 - Outfit-Creator zum Kombinieren von Kleidungsstücken
 - Besitzerprüfung: jeder Benutzer sieht nur seine eigenen Daten
+- Ratenbegrenzung beim Login (max. 10 Fehlversuche pro IP/Minute)
 - Sicherheitsheader: CSP, X-Content-Type-Options, Content-Type-JSON
+- Passwort-Hashing mit bcrypt
+- Magic-Byte-Validierung für Bild-Uploads
 
 ## Environment Variables
 
-Siehe `RUN.json` für die vollständige Konfiguration:
+Siehe `RUN.json` und `.env.example` für die vollständige Konfiguration:
 
 - `DATABASE_PATH` — Pfad zur SQLite-Datenbank (dev: `wardrobe.db`)
 - `JWT_SECRET_KEY` — Signing-Key für JWT-Tokens (wird pro Lauf generiert)
