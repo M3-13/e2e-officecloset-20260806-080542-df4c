@@ -41,12 +41,15 @@
       "stack": "web-vite",
       "kind": "static",
       "install": [
-        ["npm", "install"]
+        ["npm", "ci"]
       ],
       "build": [
         ["npm", "run", "build"]
       ],
-      "serve_dir": "dist"
+      "serve_dir": "dist",
+      "start": ["npx", "vite", "preview", "--port", "${PORT}", "--host", "0.0.0.0"],
+      "port": 4173,
+      "port_env": "PORT"
     }
   ]
 }
