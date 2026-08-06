@@ -1,11 +1,14 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Navbar from './components/Navbar';
+import Footer from './components/Footer';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import WardrobePage from './pages/WardrobePage';
 import OutfitCreatorPage from './pages/OutfitCreatorPage';
 import OutfitsPage from './pages/OutfitsPage';
+import PrivacyPage from './pages/PrivacyPage';
+import ImprintPage from './pages/ImprintPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
@@ -44,6 +47,8 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/imprint" element={<ImprintPage />} />
       <Route path="/" element={<Navigate to="/wardrobe" replace />} />
     </Routes>
   );
@@ -55,6 +60,7 @@ function App() {
       <AuthProvider>
         <Navbar />
         <AppRoutes />
+        <Footer />
       </AuthProvider>
     </BrowserRouter>
   );
