@@ -544,7 +544,7 @@ export default function OutfitCreatorPage() {
         {selectedItems.map((item) => (
           <div key={item.id} className="oc-stage__item">
             <img
-              src={item.image_url}
+              src={`/api/wardrobe/${item.id}/image`}
               alt={item.name}
               className="oc-stage__image"
             />
@@ -646,7 +646,7 @@ export default function OutfitCreatorPage() {
                     >
                       <div className="oc-item__img-wrap">
                         <img
-                          src={item.image_url}
+                          src={`/api/wardrobe/${item.id}/image`}
                           alt={item.name}
                           className="oc-item__img"
                         />

@@ -101,16 +101,11 @@ def login(body: UserCreate, request: Request, db: Session = Depends(get_db)) -> 
 
 
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
-    token: str | None = None
     auth_header = request.headers.get("Authorization")
-    if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header.removeprefix("Bearer ")
-
-    if not token:
-        token = request.cookies.get("access_token")
-
-    if not token:
+    if not auth_header or not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Not authenticated")
+
+    token = auth_header.removeprefix("Bearer ")
     try:
         payload = jwt.decode(token, _get_secret_key(), algorithms=[ALGORITHM])
         user_id_str: str | None = payload.get("sub")

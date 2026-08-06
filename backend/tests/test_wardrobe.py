@@ -377,6 +377,88 @@ class TestDeleteWardrobeItem:
             assert response.status_code == 404
 
 
+class TestWardrobeImageEndpoint:
+    def test_get_image_own_item_jpeg(self, tmp_path):
+        os.environ["UPLOAD_DIR"] = str(tmp_path / "uploads")
+        os.makedirs(os.environ["UPLOAD_DIR"], exist_ok=True)
+        app.dependency_overrides[get_current_user] = _override_get_current_user_1
+
+        with TestClient(app) as client:
+            jpeg = _make_jpeg_bytes()
+            create_resp = client.post(
+                "/api/wardrobe",
+                data={"name": "Shirt", "category": "Oberteil"},
+                files={"image": ("shirt.jpg", io.BytesIO(jpeg), "image/jpeg")},
+            )
+            assert create_resp.status_code == 201
+            item_id = create_resp.json()["id"]
+
+            img_resp = client.get(f"/api/wardrobe/{item_id}/image")
+            assert img_resp.status_code == 200
+            assert img_resp.headers["content-type"] == "image/jpeg"
+            assert len(img_resp.content) > 0
+
+    def test_get_image_own_item_png(self, tmp_path):
+        os.environ["UPLOAD_DIR"] = str(tmp_path / "uploads")
+        os.makedirs(os.environ["UPLOAD_DIR"], exist_ok=True)
+        app.dependency_overrides[get_current_user] = _override_get_current_user_1
+
+        with TestClient(app) as client:
+            png = _make_png_bytes()
+            create_resp = client.post(
+                "/api/wardrobe",
+                data={"name": "Hemd", "category": "Oberteil"},
+                files={"image": ("shirt.png", io.BytesIO(png), "image/png")},
+            )
+            assert create_resp.status_code == 201
+            item_id = create_resp.json()["id"]
+
+            img_resp = client.get(f"/api/wardrobe/{item_id}/image")
+            assert img_resp.status_code == 200
+            assert img_resp.headers["content-type"] == "image/png"
+            assert len(img_resp.content) > 0
+
+    def test_get_image_other_user_returns_404(self, tmp_path):
+        os.environ["UPLOAD_DIR"] = str(tmp_path / "uploads")
+        os.makedirs(os.environ["UPLOAD_DIR"], exist_ok=True)
+        app.dependency_overrides[get_current_user] = _override_get_current_user_1
+
+        with TestClient(app) as client:
+            jpeg = _make_jpeg_bytes()
+            create_resp = client.post(
+                "/api/wardrobe",
+                data={"name": "Secret", "category": "Schuhe"},
+                files={"image": ("secret.jpg", io.BytesIO(jpeg), "image/jpeg")},
+            )
+            assert create_resp.status_code == 201
+            item_id = create_resp.json()["id"]
+
+        app.dependency_overrides[get_current_user] = _override_get_current_user_2
+
+        with TestClient(app) as client2:
+            img_resp = client2.get(f"/api/wardrobe/{item_id}/image")
+            assert img_resp.status_code == 404
+
+    def test_get_image_nonexistent_item_returns_404(self):
+        app.dependency_overrides[get_current_user] = _override_get_current_user_1
+
+        with TestClient(app) as client:
+            response = client.get("/api/wardrobe/99999/image")
+            assert response.status_code == 404
+
+    def test_get_image_rejected_without_auth(self):
+        app.dependency_overrides.pop(get_current_user, None)
+        with TestClient(app) as client:
+            response = client.get("/api/wardrobe/1/image")
+            assert response.status_code != 200
+
+    def test_direct_uploads_mount_no_longer_works(self):
+        app.dependency_overrides[get_current_user] = _override_get_current_user_1
+        with TestClient(app) as client:
+            response = client.get("/api/uploads/nonexistent.jpg")
+            assert response.status_code == 404
+
+
 class TestImageUtils:
     def test_strip_exif_removes_metadata(self, tmp_path):
         from PIL import Image
