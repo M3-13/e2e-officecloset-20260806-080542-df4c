@@ -77,13 +77,13 @@ export default function Footer() {
             &copy; {new Date().getFullYear()} Red Carpet Wardrobe
           </span>
           <nav className="footer__links" aria-label="Rechtliche Informationen">
-            <Link to="/privacy" className="footer__link">
+            <Link to="/privacy" className="footer__link" aria-label="Datenschutz">
               Datenschutz
             </Link>
             <span className="footer__separator" aria-hidden="true">
               |
             </span>
-            <Link to="/imprint" className="footer__link">
+            <Link to="/imprint" className="footer__link" aria-label="Impressum">
               Impressum
             </Link>
           </nav>
