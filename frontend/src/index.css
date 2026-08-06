@@ -1,3 +1,8 @@
+@import '@fontsource/inter/latin.css';
+@import '@fontsource/inter/latin-italic.css';
+@import '@fontsource/playfair-display/latin.css';
+@import '@fontsource/playfair-display/latin-italic.css';
+
 :root {
   --color-bg: #0F0A0A;
   --color-bg_card: #1A1214;
