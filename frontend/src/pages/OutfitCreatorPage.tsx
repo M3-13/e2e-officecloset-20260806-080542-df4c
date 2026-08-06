@@ -87,11 +87,25 @@ const CSS = `
 
 .oc-name-bar {
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   gap: var(--space-3);
   flex-wrap: wrap;
   margin-bottom: var(--space-6);
   animation: slideUp 0.4s ease;
+}
+
+.oc-name-field {
+  flex: 1;
+  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.oc-name-label {
+  font-size: var(--size-sm);
+  font-weight: 500;
+  color: var(--color-fg);
 }
 
 .oc-name-input {
@@ -571,13 +585,17 @@ export default function OutfitCreatorPage() {
       <h1 className="oc-title">Outfit-Creator</h1>
 
       <div className="oc-name-bar">
-        <input
-          type="text"
-          className="oc-name-input"
-          placeholder="Outfit-Name..."
-          value={outfitName}
-          onChange={(e) => setOutfitName(e.target.value)}
-        />
+        <div className="oc-name-field">
+          <label className="oc-name-label" htmlFor="oc-name">Outfit-Name</label>
+          <input
+            id="oc-name"
+            type="text"
+            className="oc-name-input"
+            placeholder="Outfit-Name..."
+            value={outfitName}
+            onChange={(e) => setOutfitName(e.target.value)}
+          />
+        </div>
         <button
           type="button"
           className="oc-save-btn"
@@ -624,6 +642,7 @@ export default function OutfitCreatorPage() {
                       className={`oc-item${selected ? ' oc-item--selected' : ''}`}
                       onClick={() => toggleItem(item.id)}
                       title={item.name}
+                      aria-pressed={selected}
                     >
                       <div className="oc-item__img-wrap">
                         <img

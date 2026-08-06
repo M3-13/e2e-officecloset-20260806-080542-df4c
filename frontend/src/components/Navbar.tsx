@@ -11,9 +11,9 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="navbar">
+    <nav className="navbar" role="navigation" aria-label="Hauptnavigation">
       <div className="navbar__inner">
-        <NavLink to="/wardrobe" className="navbar__brand">
+        <NavLink to="/wardrobe" className="navbar__brand" aria-label="Startseite">
           Red Carpet Wardrobe
         </NavLink>
 
@@ -24,6 +24,7 @@ export default function Navbar() {
               className={({ isActive }) =>
                 `navbar__link${isActive ? ' navbar__link--active' : ''}`
               }
+              aria-label="Garderobe"
             >
               Garderobe
             </NavLink>
@@ -32,6 +33,7 @@ export default function Navbar() {
               className={({ isActive }) =>
                 `navbar__link${isActive ? ' navbar__link--active' : ''}`
               }
+              aria-label="Outfit-Creator"
             >
               Outfit-Creator
             </NavLink>
@@ -40,6 +42,7 @@ export default function Navbar() {
               className={({ isActive }) =>
                 `navbar__link${isActive ? ' navbar__link--active' : ''}`
               }
+              aria-label="Outfits"
             >
               Outfits
             </NavLink>
@@ -47,6 +50,7 @@ export default function Navbar() {
               type="button"
               className="navbar__logout"
               onClick={handleLogout}
+              aria-label="Abmelden"
             >
               Logout
             </button>
