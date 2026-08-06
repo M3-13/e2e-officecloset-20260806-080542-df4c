@@ -28,7 +28,6 @@ def _outfit_to_response(outfit: Outfit) -> OutfitResponse:
     )
 
 
-
 @router.post("", response_model=OutfitResponse, status_code=201)
 def create_outfit(
     body: OutfitCreate,
