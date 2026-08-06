@@ -1,80 +1,60 @@
-VERDICT: BLOCKED
+VERDICT: CHANGES_REQUESTED
 
-## Strukturierte rechtliche Prüfung des Sprints
+## Bericht zur rechtlichen Konformität und Marktreife
 
-### 1. Datenschutz-Grundverordnung (DSGVO)
+### 1. DSGVO (Datenschutz-Grundverordnung)
 
-#### 1.1 Fehlende Datenschutzerklärung – Informationspflicht nach Art. 13
-**Schweregrad:** kritisch  
-**Fundstelle:** gesamte Codebasis (kein Privacy-Hinweis vorhanden)  
-**Problem:** Die Anwendung verarbeitet personenbezogene Daten (E-Mail-Adresse, Passwort-Hash, hochgeladene Bilder) von registrierten Nutzern. Es existiert keinerlei Datenschutzerklärung, die die betroffene Person über Art, Umfang, Zwecke, Rechtsgrundlagen, Speicherdauer und ihre Rechte informiert. Dies verstößt gegen die Informationspflichten aus Art. 13 DSGVO und macht die Verarbeitung unrechtmäßig.  
-**Abhilfe:**  
-- Erstellen Sie eine Datenschutzerklärung als eigene Seite (z. B. `/privacy`) und hinterlegen Sie sie im Frontend.  
-- Fügen Sie einen gut sichtbaren Link im Footer oder während des Registrierungsprozesses hinzu.  
-- Die Erklärung muss mindestens enthalten: Verantwortlicher, Kontaktdaten des Datenschutzbeauftragten, Zwecke und Rechtsgrundlagen der Verarbeitung, Kategorien personenbezogener Daten, Empfänger, Übermittlungen in Drittländer, Speicherdauer, Betroffenenrechte, Beschwerderecht bei einer Aufsichtsbehörde.
+#### 1.1 Fehlende Account-Löschung (Recht auf Löschung)
+- **Schweregrad:** hoch
+- **Feststellung:** Die API bietet keinen Endpunkt, mit dem ein Benutzer sein Konto selbst löschen kann. Die Datenschutzerklärung verspricht, dass Daten bei Account-Auflösung gelöscht werden, aber es gibt keinen Weg, dies zu veranlassen. Dies verletzt das Recht auf Löschung nach Art. 17 DSGVO, da Betroffene ihre Daten nicht selbst entfernen können.
+- **Abhilfe:** Implementieren Sie einen authentifizierten `DELETE /api/account`-Endpunkt im `backend/auth.py` (Router). Dieser muss alle verknüpften Kleidungsstücke, Outfits, gespeicherten Bilder und den Benutzerdatensatz löschen. Ergänzen Sie im Frontend eine Einstellungsseite mit einem Lösch-Button, oder verlinken Sie eine E‑Mail-Adresse, an die Löschanträge gestellt werden können. Beispiel: `@router.delete("/account", status_code=204)`.
 
-#### 1.2 JWT-Cookie trotz Vorgabe „Authorization-Header only“ (AC-08) widerspricht Sicherheits- und Datenschutzzielen
-**Schweregrad:** hoch  
-**Fundstelle:** `backend/auth.py`, Zeile `response.set_cookie("access_token", …)`  
-**Problem:** Der Login-Endpunkt setzt ein `HttpOnly`-Cookie mit dem JWT. Dies ist nicht erforderlich und widerspricht AC-08 („JWT-Token werden ausschließlich über den Authorization-Header übertragen“). Das Cookie erhöht die Angriffsfläche (z. B. CSRF, versehentliches Logging), ohne dass es vom Client jemals ausgewertet wird. Zudem ist `secure=False` gesetzt, was im Produktivbetrieb ein Sicherheitsrisiko darstellt.  
-**Abhilfe:**  
-- Entfernen Sie den `response.set_cookie`-Block in `backend/auth.py:79–84`.  
-- Stellen Sie sicher, dass der Client das Token ausschließlich über den `Authorization`-Header sendet (dies ist bereits der Fall).
+#### 1.2 JWT wird nicht als `HttpOnly`-Cookie gesetzt (Widerspruch zu AC‑25)
+- **Schweregrad:** hoch
+- **Feststellung:** Die Sprint‑Spec verlangt in **AC‑08**, dass das JWT ausschließlich im `Authorization`-Header übertragen wird, und in **AC‑25**, dass es als `HttpOnly`‑Cookie gesetzt wird. Die aktuelle Implementierung folgt AC‑08 (kein Cookie, `Bearer`-Header). AC‑25 ist nicht erfüllt. Ein rein speicherbasierter Token (wie im `AuthContext`) bietet keinen Schutz gegen Seiten-Neuladen (Auth‑Verlust) und ist bei XSS‑Angriffen gefährdet, da er im JavaScript-Kontext liegt. Im Widerspruch zu AC‑25 leidet die Sicherheitsarchitektur, was ein Datenschutzrisiko darstellt.
+- **Abhilfe:** Entscheiden Sie, ob AC‑25 oder AC‑08 Vorrang hat:
+  - **Variante A (Cookie-basiert, sicherer):** Backend setzt nach Login ein `HttpOnly`‑Cookie (z. B. `Set-Cookie: access_token=...; HttpOnly; Secure; SameSite=Strict`). Das Frontend entfernt die Speicherung im `AuthContext` und sendet den Token nur noch über den Cookie. Der `Authorization`-Header wird nicht mehr genutzt. Dann muss AC‑08 aus der Spec entfernt werden.
+  - **Variante B (Header-basiert, aktuell):** Entfernen Sie AC‑25 aus der Spec und dokumentieren Sie, dass der Token nur im Header übertragen wird. Eine Persistenz über `localStorage` sollte aus Sicherheitsgründen vermieden werden (aktuell nicht verwendet). Bei Variante B muss AC‑25 als „nicht implementiert“ gekennzeichnet werden. Beide Varianten sind GDPR‑konform, aber die Spec muss widerspruchsfrei sein.
 
-#### 1.3 Unkontrollierte Datenübermittlung an Google durch externe Fonts
-**Schweregrad:** mittel  
-**Fundstelle:** `frontend/index.html`, Zeile 11–13 (Google Fonts CSS)  
-**Problem:** Das Frontend bindet Schriftarten von `fonts.googleapis.com` und `fonts.gstatic.com` ein. Ohne Einwilligung werden bei jedem Seitenaufruf personenbezogene Daten (mindestens die IP-Adresse) an einen Drittanbieter übermittelt. Dies ist nicht durch eine Rechtsgrundlage gedeckt und verstößt gegen Art. 6 DSGVO. Zudem blockiert die aktuelle Content-Security-Policy (`default-src 'self'`) das Laden der Schriften – die Einbindung ist daher ohnehin wirkungslos oder würde zu Layoutfehlern führen.  
-**Abhilfe:**  
-- Hosting der Schriftarten lokal: Laden Sie die benötigten Font-Dateien herunter, legen Sie sie in `frontend/src/assets/fonts/` ab und definieren Sie `@font-face`-Regeln in `frontend/src/index.css`.  
-- Entfernen Sie die externen `<link>`-Tags aus `index.html`.  
-- Passen Sie die CSP in `backend/security.py` an: `font-src 'self'` hinzufügen.
+#### 1.3 Platzhalter in der Datenschutzerklärung
+- **Schweregrad:** mittel
+- **Feststellung:** In `frontend/src/pages/PrivacyPage.tsx` stehen Platzhalter wie `[Name des Betreibers]`, `[Strasse und Hausnummer]` etc. Das ist für eine Testumgebung akzeptabel, nicht jedoch für den Produktivbetrieb. Ohne vollständige Angaben ist der Verantwortliche nicht identifizierbar.
+- **Abhilfe:** Ersetzen Sie alle Platzhalter in `PrivacyPage.tsx` durch die tatsächlichen Kontaktdaten des Betreibers. Gleiches gilt für das Impressum (`ImprintPage.tsx`).
 
-#### 1.4 Logging von Request-Informationen (geringes Risiko)
-**Schweregrad:** niedrig  
-**Fundstelle:** `backend/main.py`, `logger.exception(…)` im globalen Exception-Handler  
-**Problem:** Der Handler loggt Methode und Pfad der Anfrage. Dies könnte in Kombination mit Server-Logs, die IP-Adressen enthalten, eine indirekte Identifizierung ermöglichen. Eine explizite Protokollierung von E‑Mails, Passwörtern oder Token findet nicht statt – AC-23 ist insoweit erfüllt.  
-**Abhilfe:**  
-- Optional: Im Produktivbetrieb sicherstellen, dass das Logging keine IP-Adressen oder User-Agent-Strings erfasst, oder die Logs nach einem angemessenen Zeitraum löschen.
+#### 1.4 Unzureichende Protokollierung von Exceptions
+- **Schweregrad:** mittel
+- **Feststellung:** `backend/main.py` fängt alle Exceptions mit `logger.exception(...)` ab. Dadurch werden der vollständige Stacktrace und der Fehlertext protokolliert. Enthält eine Exception versehentlich personenbezogene Daten (z. B. eine E‑Mail in einer Fehlermeldung), verstößt dies gegen das Logging‑Verbot aus **AC‑23**. Auch ohne PII können Stacktraces sensible interne Strukturen offenbaren.
+- **Abhilfe:** Ändern Sie den Handler in `backend/main.py`:
+  ```python
+  @app.exception_handler(Exception)
+  async def unhandled(request: Request, exc: Exception) -> JSONResponse:
+      logger.error("unhandled error on %s %s", request.method, request.url.path)
+      return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
+  ```
+  Verwenden Sie `logger.error` ohne `exc_info=True` und ohne die Exception zu übergeben, damit nur die URL protokolliert wird.
 
 ### 2. EU Cyber Resilience Act (CRA)
-**Relevanz:** Nicht anwendbar.  
-Die Anwendung ist ein reiner Onlinedienst (Web-App) und wird nicht als Produkt mit digitalen Elementen in Verkehr gebracht. Die CRA-Anforderungen an SBOM, Schwachstellenmanagement und sichere Entwicklung sind nicht verpflichtend, auch wenn sie als Best Practise sinnvoll sein können. Keine Beanstandungen.
 
-### 3. EU AI Act
-Keine KI-Funktionalität erkennbar. Keine Prüfung erforderlich.
+#### 2.1 Fehlende SBOM und Sicherheitsdokumentation
+- **Schweregrad:** niedrig
+- **Feststellung:** Das Produkt verarbeitet personenbezogene Daten und fällt als SaaS möglicherweise unter die Ausnahme für Fernverarbeitung. Dennoch empfiehlt der CRA grundsätzlich eine SBOM und dokumentierte Sicherheitseigenschaften. Im Repo fehlen eine `SBOM.json` (CycloneDX/SPDX) und eine detaillierte Beschreibung der implementierten Sicherheitsmaßnahmen über die vorhandene `SECURITY.md` hinaus.
+- **Abhilfe:** Erzeugen Sie eine Software Bill of Materials (z. B. mit `pip freeze > backend/requirements_run.txt` und `npm list --json > frontend/npm-sbom.json`). Ergänzen Sie in `SECURITY.md` eine Übersicht der umgesetzten Sicherheitsmerkmale (JWT, bcrypt, Rate Limiting, Image Validation, Content Security Policy etc.), damit die Erfüllung der CRA‑Prinzipien nachvollziehbar ist.
 
-### 4. Pflichttexte & UI (Impressum, Cookie, Rechtstexte)
+### 3. Pflichttexte und Benutzeroberfläche
 
-#### 4.1 Fehlendes Impressum (nach DDG / TMG)
-**Schweregrad:** kritisch  
-**Fundstelle:** gesamtes Frontend  
-**Problem:** Für geschäftsmäßig betriebene Telemedien ist ein Impressum mit Name, Anschrift und weiteren Pflichtangaben zwingend vorgeschrieben. Es fehlt vollständig. Dies stellt einen klaren Rechtsverstoß dar, der ein sofortiges Markthindernis bildet.  
-**Abhilfe:**  
-- Erstellen Sie eine Impressumsseite (z. B. `/imprint`) als React-Komponente und Route.  
-- Platzieren Sie einen Link im Footer, der auf jeder Seite erreichbar ist.  
-- Die Impressumspflicht gilt für den Betreiber des Dienstes; die Inhalte sind außerhalb des Codes zu definieren, aber die technische Bereitstellung muss gewährleistet sein.
+#### 3.1 Cookie-Hinweis und Consent-Banner
+- **Schweregrad:** niedrig
+- **Feststellung:** Es werden keine Cookies gesetzt, daher ist kein Consent‑Banner erforderlich. Allerdings fehlt ein sichtbarer Hinweis auf den Einsatz technisch notwendiger Session‑Informationen (falls später hinzugefügt). Der bloße Link zur Datenschutzerklärung im Footer ist akzeptabel, eine explizite Information über nicht gesetzte Cookies könnte das Vertrauen stärken.
+- **Abhilfe:** Dies kann in einem späteren Sprint ergänzt werden. Eine nicht-blockierende Option: Einmaligen Hinweis "Diese Website verwendet keine Tracking-Cookies" anzeigen und nach Bestätigung ausblenden.
 
-#### 4.2 Fehlende Cookie-Information
-**Schweregrad:** hoch  
-**Fundstelle:** gesamte Anwendung  
-**Problem:** Obwohl nur ein technisch notwendiges Cookie (authentifizierung) gesetzt werden darf, muss der Nutzer hierüber in der Datenschutzerklärung informiert werden. Ein Cookie-Banner ist bei rein notwendigen Cookies entbehrlich, aber aufgrund der Transparenzpflicht muss die Datenschutzerklärung die verwendeten Cookies beschreiben.  
-**Abhilfe:**  
-- Ergänzung in der Datenschutzerklärung: Nennung des Cookies, Zweck, Speicherdauer, Hinweis auf die Unerlässlichkeit für den Login.
+### 4. Barrierefreiheit (BITV/WCAG)
 
-### 5. Barrierefreiheit (WCAG / BITV / EAA)
-
-#### 5.1 Keine Accessibility-Prüfung oder -Umsetzung erkennbar
-**Schweregrad:** hoch  
-**Fundstelle:** gesamtes Frontend  
-**Problem:** Die Anwendung muss nach den Anforderungen der WCAG 2.1 (Level AA) und dem European Accessibility Act barrierefrei sein, sofern sie an Verbraucher gerichtet ist. Es sind weder Tests noch spezifische Maßnahmen (ARIA-Labels, ausreichender Farbkontrast, Tastaturbedienbarkeit, Screenreader-Tauglichkeit) implementiert.  
-**Abhilfe:**  
-- Führen Sie ein automatisiertes Accessibility-Audit (z. B. mit axe DevTools oder Lighthouse) durch und beheben Sie kritische Fehler (z. B. fehlende Alternativtexte für Bilder, unzureichende Kontraste).  
-- Mindestens:  
-  - Alle Grafiken erhalten ein sinnvolles `alt`-Attribut.  
-  - Formularfelder sind mit eindeutigen `<label>`-Elementen verknüpft.  
-  - Die Farbpalette (dunkler Hintergrund, rote/goldene Akzente) wird auf ausreichendes Kontrastverhältnis (4,5:1 für Normaltext, 3:1 für große Texte) überprüft und ggf. angepasst.  
-- Integration eines Accessibility-Checks in die CI-Pipeline wird empfohlen.
-
-### Fazit
-Das Produkt weist mindestens zwei kritische Rechtsverstöße auf – das Fehlen eines Impressums und das Fehlen einer Datenschutzerklärung. Ohne diese Informationen ist die Verarbeitung personenbezogener Daten nicht DSGVO‑konform und der Marktzugang ist nicht zulässig. Die Blockade ist daher unumgänglich. Nach Behebung der kritischen Punkte sowie der weiteren mittleren und hohen Beanstandungen kann eine Neubewertung erfolgen.
+#### 4.1 Fehlende Barrierefreiheitserklärung und grundlegende Mängel
+- **Schweregrad:** mittel
+- **Feststellung:** Das Frontend ist eine öffentliche Web‑UI und muss die Anforderungen der Barrierefreiheitsstärkungsgesetzes (BFSG, ab 2025) erfüllen. Es fehlt eine Barrierefreiheitserklärung (z. B. `/accessibility`), und es wurden keine Tests auf Tastaturbedienbarkeit, Screenreader-Kompatibilität oder Farbkontraste durchgeführt.
+- **Abhilfe:**
+  - Erstellen Sie eine Seite `frontend/src/pages/AccessibilityPage.tsx` mit einer Erklärung und Kontaktmöglichkeit für Feedback.
+  - Fügen Sie in `frontend/index.html` einen versteckten Skiplink ein: `<a class="skip-link" href="#main">Zum Inhalt springen</a>`.
+  - Stellen Sie sicher, dass interaktive Elemente (Buttons, Links) per Tabulator erreichbar sind und einen sichtbaren Fokusrahmen erhalten (prüfen Sie `outline: none` nirgends verwendet wird).
+  - Verwenden Sie für dynamisch eingeblendete Fehlermeldungen `aria-live="polite"` (z. B. in Login- und Registrierungsformularen).
+  - Lassen Sie die Farbpalette durch ein Kontrast‑Tool prüfen (insbesondere Gold `#C9A84C` auf Hintergrund `#0F0A0A` kann den Mindestkontrast unterschreiten).
