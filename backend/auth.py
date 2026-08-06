@@ -4,7 +4,6 @@ from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import Response
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
@@ -85,9 +84,7 @@ def register(body: UserCreate, db: Session = Depends(get_db)) -> TokenResponse:
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(
-    body: UserCreate, request: Request, response: Response, db: Session = Depends(get_db)
-) -> TokenResponse:
+def login(body: UserCreate, request: Request, db: Session = Depends(get_db)) -> TokenResponse:
     client_ip = request.client.host if request.client else "unknown"
 
     if not _check_rate_limit(client_ip):
@@ -100,15 +97,6 @@ def login(
 
     _clear_rate_limit(client_ip)
     token = _create_access_token(user.id)
-
-    response.set_cookie(
-        key="access_token",
-        value=token,
-        httponly=True,
-        secure=False,
-        samesite="lax",
-        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-    )
     return TokenResponse(access_token=token)
 
 

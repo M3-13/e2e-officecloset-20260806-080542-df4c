@@ -106,22 +106,19 @@ class TestLogin:
         assert "access_token" in data
         assert data["token_type"] == "bearer"
 
-    def test_sets_httponly_cookie(self, client):
+    def test_does_not_set_cookie(self, client):
         _create_user_in_db(
-            "cookie@test.com",
+            "nocookie@test.com",
             "$2b$12$LJ3m4ys3JkDm0sNPEh0LLe5q0mF0S9N5D0aXHtC7HYB6cXG8YwXpK",
         )
 
         with mock.patch("auth._verify_password", return_value=True):
             resp = client.post(
                 "/api/auth/login",
-                json={"email": "cookie@test.com", "password": "irrelevant"},
+                json={"email": "nocookie@test.com", "password": "irrelevant"},
             )
         assert resp.status_code == 200
-        assert "set-cookie" in resp.headers
-        cookie = resp.headers["set-cookie"]
-        assert "access_token=" in cookie
-        assert "httponly" in cookie.lower()
+        assert resp.headers.get("set-cookie") is None
 
     def test_rejects_wrong_password(self, client):
         _create_user_in_db(
