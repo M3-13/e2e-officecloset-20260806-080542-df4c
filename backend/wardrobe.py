@@ -1,6 +1,7 @@
 import os
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from auth import get_current_user
@@ -10,6 +11,15 @@ from models import ClothingItem, User
 from schemas import ClothingItemResponse
 
 router = APIRouter(prefix="/api/wardrobe")
+
+
+def _image_path_for_item(item_id: int) -> str | None:
+    upload_dir = os.environ.get("UPLOAD_DIR", "uploads")
+    for ext in (".jpg", ".png"):
+        candidate = os.path.join(upload_dir, f"{item_id}{ext}")
+        if os.path.isfile(candidate):
+            return candidate
+    return None
 
 
 @router.get("", response_model=list[ClothingItemResponse])
@@ -44,17 +54,44 @@ async def create_wardrobe_item(
             os.remove(filepath)
         raise HTTPException(status_code=400, detail="Image processing failed") from None
 
+    ext = os.path.splitext(filename)[1]
     item = ClothingItem(
         name=name,
         category=category,
         description=description,
-        image_url=f"/api/uploads/{filename}",
+        image_url=filename,
         user_id=current_user.id,
     )
     db.add(item)
     db.commit()
     db.refresh(item)
+
+    new_filename = f"{item.id}{ext}"
+    new_filepath = os.path.join(upload_dir, new_filename)
+    os.rename(filepath, new_filepath)
+
+    item.image_url = f"/api/wardrobe/{item.id}/image"
+    db.commit()
+    db.refresh(item)
     return item
+
+
+@router.get("/{id}/image")
+def get_wardrobe_image(
+    id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> FileResponse:
+    item = db.query(ClothingItem).where(ClothingItem.id == id).first()
+    if not item or item.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    file_path = _image_path_for_item(id)
+    if file_path is None:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    media_type = "image/png" if file_path.lower().endswith(".png") else "image/jpeg"
+    return FileResponse(file_path, media_type=media_type)
 
 
 @router.get("/{id}", response_model=ClothingItemResponse)
@@ -79,11 +116,9 @@ def delete_wardrobe_item(
     if not item or item.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Not found")
 
-    image_path = item.image_url.removeprefix("/api/uploads/")
-    upload_dir = os.environ.get("UPLOAD_DIR", "uploads")
-    full_path = os.path.join(upload_dir, image_path)
-    if os.path.isfile(full_path):
-        os.remove(full_path)
+    file_path = _image_path_for_item(id)
+    if file_path is not None:
+        os.remove(file_path)
 
     db.delete(item)
     db.commit()

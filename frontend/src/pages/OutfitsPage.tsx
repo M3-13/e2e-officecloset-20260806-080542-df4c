@@ -546,7 +546,7 @@ export default function OutfitsPage() {
                 outfit.items.slice(0, 4).map((item) => (
                   <img
                     key={item.id}
-                    src={item.image_url}
+                    src={`/api/wardrobe/${item.id}/image`}
                     alt={item.name}
                     className="of-card__thumb"
                   />
@@ -608,7 +608,7 @@ export default function OutfitsPage() {
               {detailOutfit.items.map((item) => (
                 <div key={item.id} className="of-modal__item">
                   <img
-                    src={item.image_url}
+                    src={`/api/wardrobe/${item.id}/image`}
                     alt={item.name}
                     className="of-modal__image"
                   />

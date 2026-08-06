@@ -200,7 +200,7 @@ export default function WardrobePage() {
               <div className="wardrobe-card__image-wrapper">
                 <img
                   className="wardrobe-card__image"
-                  src={item.image_url}
+                  src={`/api/wardrobe/${item.id}/image`}
                   alt={item.name}
                   loading="lazy"
                 />
