@@ -14,8 +14,8 @@
   --color-error: #E05555;
   --color-success: #5FA87A;
 
-  --font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-family-heading: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --font-family-heading: 'Inter', system-ui, -apple-system, sans-serif;
   --heading-weight: 700;
   --body-weight: 400;
 
