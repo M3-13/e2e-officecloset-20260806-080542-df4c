@@ -185,7 +185,7 @@ class TestCreateWardrobeItem:
             assert data["name"] == "Abendkleid"
             assert data["category"] == "Oberteil"
             assert data["description"] == "Ein wunderschönes Abendkleid"
-            assert data["image_url"].startswith("/api/uploads/")
+            assert data["image_url"].startswith("/api/wardrobe/")
             assert "id" in data
             assert "created_at" in data
 
@@ -204,7 +204,7 @@ class TestCreateWardrobeItem:
             assert response.status_code == 201
             data = response.json()
             assert data["name"] == "Hemd"
-            assert data["image_url"].startswith("/api/uploads/")
+            assert data["image_url"].startswith("/api/wardrobe/")
 
     def test_create_item_without_description(self, tmp_path):
         os.environ["UPLOAD_DIR"] = str(tmp_path / "uploads")
