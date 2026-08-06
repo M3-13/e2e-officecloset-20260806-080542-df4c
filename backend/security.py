@@ -13,7 +13,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         if "text/html" in content_type:
             response.headers["Content-Security-Policy"] = (
                 "default-src 'self'; script-src 'self'; "
-                "style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+                "style-src 'self' 'unsafe-inline'; "
+                "font-src 'self'; img-src 'self' data:"
             )
 
         return response

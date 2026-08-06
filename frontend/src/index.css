@@ -1,3 +1,35 @@
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('./assets/fonts/Inter-VariableFont_opsz,wght.ttf') format('truetype-variations');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('./assets/fonts/Inter-Italic-VariableFont_opsz,wght.ttf') format('truetype-variations');
+}
+
+@font-face {
+  font-family: 'Playfair Display';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('./assets/fonts/PlayfairDisplay-VariableFont_wght.ttf') format('truetype-variations');
+}
+
+@font-face {
+  font-family: 'Playfair Display';
+  font-style: italic;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('./assets/fonts/PlayfairDisplay-Italic-VariableFont_wght.ttf') format('truetype-variations');
+}
+
 :root {
   --color-bg: #0F0A0A;
   --color-bg_card: #1A1214;
