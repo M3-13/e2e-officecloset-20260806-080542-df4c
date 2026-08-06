@@ -31,9 +31,22 @@
           "dev": "uploads"
         },
         "FRONTEND_ORIGIN": {
-          "dev": "http://localhost:5173"
+          "dev": "${service:frontend.origin}"
         }
       }
+    },
+    {
+      "name": "frontend",
+      "dir": "frontend",
+      "stack": "web-vite",
+      "kind": "static",
+      "install": [
+        ["npm", "install"]
+      ],
+      "build": [
+        ["npm", "run", "build"]
+      ],
+      "serve_dir": "dist"
     }
   ]
 }
