@@ -42,7 +42,7 @@ async def create_wardrobe_item(
     except Exception:
         if os.path.isfile(filepath):
             os.remove(filepath)
-        raise HTTPException(status_code=400, detail="Image processing failed")
+        raise HTTPException(status_code=400, detail="Image processing failed") from None
 
     item = ClothingItem(
         name=name,
